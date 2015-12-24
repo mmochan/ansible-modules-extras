@@ -43,7 +43,7 @@ options:
         If you're using AmazonProvidedDNS in another region, specify
         region.compute.internal
         Otherwise, specify a domain name (for example, MyCompany.com).
-    required false
+    required: false
   tags:
     description:
       - List of Tags
