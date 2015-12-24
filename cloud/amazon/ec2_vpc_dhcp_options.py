@@ -16,114 +16,109 @@
 DOCUMENTATION = '''
 module: ec2_vpc_dhcp_options
 short_description: Create, delete, update dhcp_options_sets.
-    Requires Boto3, botocore and json.
+  Requires Boto3, botocore and json.
 description:
-- Read the AWS documentation for DHCP Options Sets for the correct json Values
+  - Read the AWS documentation for DHCP Options Sets for the correct json Values
     U(http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_DHCP_Options.html)
-
-- It is not possible to update an existing dhcp_options_set therefore any
-  changes require the old one to be deleted and a new one to be created
-- If the old dhcp_option_set is associated with a VPC or multiple VPCs
-  this association will be re-created for the new / updated dhcp_option_set.
-version_added: "2.0"
-    state:
-        description:
-            - present to ensure resource is created or updated.
-            - absent to remove resource
-        required: false
-        default: present
-        choices: [ "present", "absent"]
-    name:
-        description:
-        - Name Tag used for tagging and identifying the resource
-        required: true
-    domain_name:
-        description:
-        - If you're using AmazonProvidedDNS in us-east-1, specify ec2.internal.
-          If you're using AmazonProvidedDNS in another region, specify
-          region.compute.internal
-          Otherwise, specify a domain name (for example, MyCompany.com).
-        required false
-    tags:
-        description:
-          - List of Tags
-        required: false
-    domain_name_servers:
-        description:
-          - The IP addresses of up to four domain name servers
-        requied: false
-    ntp_servers:
-        description:
-          - The IP addresses of up to four Network Time Protocol (NTP) servers.
-        requied: false
-    netbios_name_servers:
-        description:
-          - The IP addresses of up to four NetBIOS name servers.
-        requied: false
-    netbios_node_type:
-        description:
-          - The NetBIOS node type (1, 2, 4, or 8).
-          AWS recommends that you specify 2.
-        requied: false
-
-
+  - It is not possible to update an existing dhcp_options_set therefore any
+    changes require the old one to be deleted and a new one to be created
+  - If the old dhcp_option_set is associated with a VPC or multiple VPCs
+    this association will be re-created for the new / updated dhcp_option_set.
+version_added: "2.1"
+  state:
+    description:
+      - present to ensure resource is created or updated.
+      - absent to remove resource
+    required: false
+    default: present
+    choices: [ "present", "absent"]
+  name:
+    description:
+      - Name Tag used for tagging and identifying the resource
+    required: true
+  domain_name:
+    description:
+      - If you're using AmazonProvidedDNS in us-east-1, specify ec2.internal.
+        If you're using AmazonProvidedDNS in another region, specify
+        region.compute.internal
+        Otherwise, specify a domain name (for example, MyCompany.com).
+    required false
+  tags:
+    description:
+      - List of Tags
+    required: false
+  domain_name_servers:
+    description:
+      - The IP addresses of up to four domain name servers
+    required: false
+  ntp_servers:
+    description:
+      - The IP addresses of up to four Network Time Protocol (NTP) servers.
+    requied: false
+  netbios_name_servers:
+    description:
+      - The IP addresses of up to four NetBIOS name servers.
+    required: false
+  netbios_node_type:
+    description:
+      - The NetBIOS node type (1, 2, 4, or 8).
+        AWS recommends that you specify 2.
+    required: false
 author: Mike Mochan(@mmochan)
 extends_documentation_fragment: aws
 '''
 
 EXAMPLES = '''
 # Complete example to create or update with all options specified.
-
-  - name: Create DHCP Options
-    ec2_vpc_dhcp_options:
-      state: present
-      region: ap-southeast-2
-      name: dhcp-vpc01-x-business
-      domain_name:
-        - my.aws.com.au
-        - my.company.com.au
-        - ap-southeast-2.compute.internal
-      tags:
-        CostCode: x-business
-        Project: X
-        Vpc: '01'
-      domain_name_servers:
-        - 192.168.1.1
-        - 192.168.9.32
-      ntp_servers:
-        - 192.168.1.100
-      netbios_name_servers:
-        - 192.155.44.34
-      netbios_node_type: 2
-    register: dhcp
+- name: Create DHCP Options
+  ec2_vpc_dhcp_options:
+    state: present
+    region: ap-southeast-2
+    name: dhcp-vpc01-x-business
+    domain_name:
+      - my.aws.com.au
+      - my.company.com.au
+      - ap-southeast-2.compute.internal
+    tags:
+      CostCode: x-business
+      Project: X
+      Vpc: '01'
+    domain_name_servers:
+      - 192.168.1.1
+      - 192.168.9.32
+    ntp_servers:
+      - 192.168.1.100
+    netbios_name_servers:
+      - 192.155.44.34
+    netbios_node_type: 2
+  register: dhcp
 
 # Update the Tags.
-  - name: Update DHCP Options Tags
-    ec2_vpc_dhcp_options:
-      state: present
-      region: ap-southeast-2
-      name: dhcp-vpc01-x-business
-      tags:
-        CostCode: y-business
-        Project: Y
-        Vpc: '10'
-    register: dhcp
+- name: Update DHCP Options Tags
+  ec2_vpc_dhcp_options:
+    state: present
+    region: ap-southeast-2
+    name: dhcp-vpc01-x-business
+    tags:
+      CostCode: y-business
+      Project: Y
+      Vpc: '10'
+  register: dhcp
 
 # Example to delete.
-
-  - name: Create DHCP Options
-    ec2_vpc_dhcp_options:
-      state: absent
-      region: ap-southeast-2
-      name: dhcp-vpc01-x-business
-    register: dhcp
+- name: Create DHCP Options
+  ec2_vpc_dhcp_options:
+    state: absent
+    region: ap-southeast-2
+    name: dhcp-vpc01-x-business
+  register: dhcp
 '''
 
 RETURN = '''
 task:
-    description: details about the tast that was started
-    type: complex
-    sample: "TODO: include sample"
+  description: details about the tast that was started
+  type: complex
+  sample: "TODO: include sample"
 '''
 try:
    import json
