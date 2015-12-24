@@ -137,8 +137,6 @@ try:
 except ImportError:
     HAS_BOTO3 = False
 
-import q
-
 
 def load(module):
     params = []
@@ -187,7 +185,6 @@ def has_changed(option_set, module):
                 return True
         content = []
     tags = {}
-    q(tags)
     for tag in current_tags:
         tags[tag["Key"]] = tag["Value"]
     tags.pop("Name")
