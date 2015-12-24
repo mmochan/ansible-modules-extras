@@ -25,6 +25,7 @@ description:
   - If the old dhcp_option_set is associated with a VPC or multiple VPCs
     this association will be re-created for the new / updated dhcp_option_set.
 version_added: "2.1"
+options:
   state:
     description:
       - present to ensure resource is created or updated.
