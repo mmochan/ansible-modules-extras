@@ -19,7 +19,7 @@ short_description: Create, delete, update dhcp_options_sets.
     Requires Boto3, botocore and json.
 description:
 - Read the AWS documentation for DHCP Options Sets for the correct json Values
-  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_DHCP_Options.html
+    U(http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_DHCP_Options.html)
 
 - It is not possible to update an existing dhcp_options_set therefore any
   changes require the old one to be deleted and a new one to be created
@@ -77,6 +77,7 @@ EXAMPLES = '''
   - name: Create DHCP Options
     ec2_vpc_dhcp_options:
       state: present
+      region: ap-southeast-2
       name: dhcp-vpc01-x-business
       domain_name:
         - my.aws.com.au
@@ -100,6 +101,7 @@ EXAMPLES = '''
   - name: Update DHCP Options Tags
     ec2_vpc_dhcp_options:
       state: present
+      region: ap-southeast-2
       name: dhcp-vpc01-x-business
       tags:
         CostCode: y-business
@@ -112,6 +114,7 @@ EXAMPLES = '''
   - name: Create DHCP Options
     ec2_vpc_dhcp_options:
       state: absent
+      region: ap-southeast-2
       name: dhcp-vpc01-x-business
     register: dhcp
 '''
@@ -123,19 +126,14 @@ task:
     sample: "TODO: include sample"
 '''
 try:
-    import json
-    import datetime
-    import boto
-    import botocore
-    HAS_BOTO = True
+   import json
+   import botocore
+   import boto3
+   HAS_BOTO3 = True
 except ImportError:
-    HAS_BOTO = False
+   HAS_BOTO3 = False
 
-try:
-    import boto3
-    HAS_BOTO3 = True
-except ImportError:
-    HAS_BOTO3 = False
+import time
 
 
 def load(module):
@@ -294,6 +292,7 @@ def main():
     argument_spec.update(dict(
         state=dict(default='present', choices=['present', 'absent']),
         name=dict(required=True),
+        region=dict(required=True),
         tags=dict(),
         domain_name=dict(),
         domain_name_servers=dict(),
@@ -305,8 +304,8 @@ def main():
     )
     module = AnsibleModule(argument_spec=argument_spec)
 
-    if not (HAS_BOTO or HAS_BOTO3):
-        module.fail_json(msg='json and boto/boto3 is required.')
+    if not HAS_BOTO3:
+        module.fail_json(msg='json and boto3 is required.')
 
     state = module.params.get('state').lower()
 
@@ -314,7 +313,7 @@ def main():
         region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module, boto3=True)
         client = boto3_conn(module, conn_type='client', resource='ec2', region=region, endpoint=ec2_url, **aws_connect_kwargs)
         resource = boto3_conn(module, conn_type='resource', resource='ec2', region=region, endpoint=ec2_url, **aws_connect_kwargs)
-    except boto.exception.NoAuthHandlerFound, e:
+    except botocore.exceptions.NoCredentialsError, e:
         module.fail_json(msg="Can't authorize connection - "+str(e))
 
     if state == 'present':
