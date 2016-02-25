@@ -162,15 +162,15 @@ def load_tags(module):
     return tags
 
 
-def subnets_removed(nacl_id, subnets, client):
-    results = find_acl_by_id(nacl_id, client)
+def subnets_removed(nacl_id, subnets, client, module):
+    results = find_acl_by_id(nacl_id, client, module)
     associations = results['NetworkAcls'][0]['Associations']
     subnet_ids = [assoc['SubnetId'] for assoc in associations]
     return [subnet for subnet in subnet_ids if subnet not in subnets]
 
 
-def subnets_added(nacl_id, subnets, client):
-    results = find_acl_by_id(nacl_id, client)
+def subnets_added(nacl_id, subnets, client, module):
+    results = find_acl_by_id(nacl_id, client, module)
     associations = results['NetworkAcls'][0]['Associations']
     subnet_ids = [assoc['SubnetId'] for assoc in associations]
     return [subnet for subnet in subnets if subnet not in subnet_ids]
@@ -183,22 +183,22 @@ def subnets_changed(nacl, client, module):
     nacl_id = nacl['NetworkAcls'][0]['NetworkAclId']
     subnets = subnets_to_associate(nacl, client, module)
     if not subnets:
-        default_nacl_id = find_default_vpc_nacl(vpc_id, client)[0]
-        subnets = find_subnet_ids_by_nacl_id(nacl_id, client)
+        default_nacl_id = find_default_vpc_nacl(vpc_id, client, module)[0]
+        subnets = find_subnet_ids_by_nacl_id(nacl_id, client, module)
         if subnets:
-            replace_network_acl_association(default_nacl_id, subnets, client)
+            replace_network_acl_association(default_nacl_id, subnets, client, module)
             changed = True
             return changed
         changed = False
         return changed
-    subs_added = subnets_added(nacl_id, subnets, client)
+    subs_added = subnets_added(nacl_id, subnets, client, module)
     if subs_added:
-        replace_network_acl_association(nacl_id, subs_added, client)
+        replace_network_acl_association(nacl_id, subs_added, client, module)
         changed = True
-    subs_removed = subnets_removed(nacl_id, subnets, client)
+    subs_removed = subnets_removed(nacl_id, subnets, client, module)
     if subs_removed:
-        default_nacl_id = find_default_vpc_nacl(vpc_id, client)[0]
-        replace_network_acl_association(default_nacl_id, subs_removed, client)
+        default_nacl_id = find_default_vpc_nacl(vpc_id, client, module)[0]
+        replace_network_acl_association(default_nacl_id, subs_removed, client, module)
         changed = True
     return changed
 
@@ -216,9 +216,9 @@ def nacls_changed(nacl, client, module):
     tmp_ingress = [entry for entry in entries if entry['Egress'] is False]
     egress = [rule for rule in tmp_egress if DEFAULT_EGRESS != rule]
     ingress = [rule for rule in tmp_ingress if DEFAULT_INGRESS != rule]
-    if rules_changed(egress, params['egress'], True, nacl_id, client):
+    if rules_changed(egress, params['egress'], True, nacl_id, client, module):
         changed = True
-    if rules_changed(ingress, params['ingress'], False, nacl_id, client):
+    if rules_changed(ingress, params['ingress'], False, nacl_id, client, module):
         changed = True
     return changed
 
@@ -229,7 +229,7 @@ def tags_changed(nacl_id, client, module):
     if module.params.get('tags'):
         tags = module.params.get('tags')
     tags['Name'] = module.params.get('nacl')
-    nacl = find_acl_by_id(nacl_id, client)
+    nacl = find_acl_by_id(nacl_id, client, module)
     if nacl['NetworkAcls']:
         nacl_values = [t.values() for t in nacl['NetworkAcls'][0]['Tags']]
         nacl_tags = [item for sublist in nacl_values for item in sublist]
@@ -246,7 +246,7 @@ def tags_changed(nacl_id, client, module):
     return changed
 
 
-def rules_changed(aws_rules, param_rules, Egress, nacl_id, client):
+def rules_changed(aws_rules, param_rules, Egress, nacl_id, client, module):
     changed = False
     rules = list()
     for entry in param_rules:
@@ -261,13 +261,13 @@ def rules_changed(aws_rules, param_rules, Egress, nacl_id, client):
                 params['NetworkAclId'] = nacl_id
                 params['RuleNumber'] = rule['RuleNumber']
                 params['Egress'] = Egress
-                delete_network_acl_entry(params, client)
+                delete_network_acl_entry(params, client, module)
             changed = True
         added_rules = [x for x in rules if x not in aws_rules]
         if added_rules:
             for rule in added_rules:
                 rule['NetworkAclId'] = nacl_id
-                create_network_acl_entry(rule, client)
+                create_network_acl_entry(rule, client, module)
             changed = True
     return changed
 
@@ -287,13 +287,13 @@ def process_rule_entry(entry, Egress):
     return params
 
 
-def restore_default_associations(assoc_ids, default_nacl_id, client):
+def restore_default_associations(assoc_ids, default_nacl_id, client, module):
     if assoc_ids:
         params = dict()
         params['NetworkAclId'] = default_nacl_id[0]
         for assoc_id in assoc_ids:
             params['AssociationId'] = assoc_id
-            restore_default_acl_association(params, client)
+            restore_default_acl_association(params, client, module)
         return True
 
 
@@ -301,11 +301,11 @@ def construct_acl_entries(nacl, client, module):
     for entry in module.params.get('ingress'):
         params = process_rule_entry(entry, Egress=False)
         params['NetworkAclId'] = nacl['NetworkAcl']['NetworkAclId']
-        create_network_acl_entry(params, client)
+        create_network_acl_entry(params, client, module)
     for rule in module.params.get('egress'):
         params = process_rule_entry(rule, Egress=True)
         params['NetworkAclId'] = nacl['NetworkAcl']['NetworkAclId']
-        create_network_acl_entry(params, client)
+        create_network_acl_entry(params, client, module)
 
 
 ## Module invocations
@@ -317,7 +317,7 @@ def setup_network_acl(client, module):
         nacl_id = nacl['NetworkAcl']['NetworkAclId']
         create_tags(nacl_id, client, module)
         subnets = subnets_to_associate(nacl, client, module)
-        replace_network_acl_association(nacl_id, subnets, client)
+        replace_network_acl_association(nacl_id, subnets, client, module)
         construct_acl_entries(nacl, client, module)
         changed = True
         return(changed, nacl['NetworkAcl']['NetworkAclId'])
@@ -342,12 +342,12 @@ def remove_network_acl(client, module):
         nacl_id = nacl['NetworkAcls'][0]['NetworkAclId']
         associations = nacl['NetworkAcls'][0]['Associations']
         assoc_ids = [a['NetworkAclAssociationId'] for a in associations]
-        default_nacl_id = find_default_vpc_nacl(vpc_id, client)
+        default_nacl_id = find_default_vpc_nacl(vpc_id, client, module)
         if not default_nacl_id:
             result = {vpc_id: "Default NACL ID not found - Check the VPC ID"}
             return changed, result
-        if restore_default_associations(assoc_ids, default_nacl_id, client):
-            delete_network_acl(nacl_id, client)
+        if restore_default_associations(assoc_ids, default_nacl_id, client, module):
+            delete_network_acl(nacl_id, client, module)
             changed = True
             result[nacl_id] = "Successfully deleted"
             return changed, result
@@ -363,7 +363,7 @@ def create_network_acl(vpc_id, client, module):
     return nacl
 
 
-def create_network_acl_entry(params, client):
+def create_network_acl_entry(params, client, module):
     try:
         result = client.create_network_acl_entry(**params)
     except botocore.exceptions.ClientError as e:
@@ -379,14 +379,14 @@ def create_tags(nacl_id, client, module):
         module.fail_json(msg=str(e))
 
 
-def delete_network_acl(nacl_id, client):
+def delete_network_acl(nacl_id, client, module):
     try:
         client.delete_network_acl(NetworkAclId=nacl_id)
     except botocore.exceptions.ClientError as e:
         module.fail_json(msg=str(e))
 
 
-def delete_network_acl_entry(params, client):
+def delete_network_acl_entry(params, client, module):
     try:
         client.delete_network_acl_entry(**params)
     except botocore.exceptions.ClientError as e:
@@ -400,7 +400,7 @@ def delete_tags(nacl_id, client, module):
         module.fail_json(msg=str(e))
 
 
-def describe_acl_associations(subnets, client):
+def describe_acl_associations(subnets, client, module):
     try:
         results = client.describe_network_acls(Filters=[
             {'Name': 'association.subnet-id', 'Values': subnets}
@@ -421,24 +421,24 @@ def describe_network_acl(client, module):
     return nacl
 
 
-def find_acl_by_id(nacl_id, client):
+def find_acl_by_id(nacl_id, client, module):
     try:
         return client.describe_network_acls(NetworkAclIds=[nacl_id])
     except botocore.exceptions.ClientError as e:
         module.fail_json(msg=str(e))
 
 
-def find_default_vpc_nacl(vpc_id, client):
+def find_default_vpc_nacl(vpc_id, client, module):
     try:
         response = client.describe_network_acls(Filters=[
             {'Name': 'vpc-id', 'Values': [vpc_id]}])
     except botocore.exceptions.ClientError as e:
         module.fail_json(msg=str(e))
     nacls = response['NetworkAcls']
-    return [n['NetworkAclId'] for n in nacls if n['IsDefault'] == True]        
+    return [n['NetworkAclId'] for n in nacls if n['IsDefault'] == True]
 
 
-def find_subnet_ids_by_nacl_id(nacl_id, client):
+def find_subnet_ids_by_nacl_id(nacl_id, client, module):
     try:
         results = client.describe_network_acls(Filters=[
             {'Name': 'association.network-acl-id', 'Values': [nacl_id]}
@@ -452,10 +452,10 @@ def find_subnet_ids_by_nacl_id(nacl_id, client):
         return []
 
 
-def replace_network_acl_association(nacl_id, subnets, client):
+def replace_network_acl_association(nacl_id, subnets, client, module):
     params = dict()
     params['NetworkAclId'] = nacl_id
-    for association in describe_acl_associations(subnets, client):
+    for association in describe_acl_associations(subnets, client, module):
         params['AssociationId'] = association
         try:
             client.replace_network_acl_association(**params)
@@ -463,7 +463,7 @@ def replace_network_acl_association(nacl_id, subnets, client):
             module.fail_json(msg=str(e))
 
 
-def replace_network_acl_entry(entries, Egress, nacl_id, client):
+def replace_network_acl_entry(entries, Egress, nacl_id, client, module):
     params = dict()
     for entry in entries:
         params = entry
@@ -474,7 +474,7 @@ def replace_network_acl_entry(entries, Egress, nacl_id, client):
             module.fail_json(msg=str(e))
 
 
-def restore_default_acl_association(params, client):
+def restore_default_acl_association(params, client, module):
     try:
         client.replace_network_acl_association(**params)
     except botocore.exceptions.ClientError as e:
