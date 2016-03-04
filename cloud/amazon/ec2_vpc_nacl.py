@@ -401,6 +401,8 @@ def delete_tags(nacl_id, client, module):
 
 
 def describe_acl_associations(subnets, client, module):
+    if not subnets:
+        return []
     try:
         results = client.describe_network_acls(Filters=[
             {'Name': 'association.subnet-id', 'Values': subnets}
@@ -484,7 +486,7 @@ def restore_default_acl_association(params, client, module):
 def subnets_to_associate(nacl, client, module):
     params = list(module.params.get('subnets'))
     if not params:
-        return False
+        return []
     if params[0].startswith("subnet-"):
         try:
             subnets = client.describe_subnets(Filters=[
