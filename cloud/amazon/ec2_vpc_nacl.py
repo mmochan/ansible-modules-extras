@@ -21,7 +21,7 @@ description:
     U(http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_ACLs.html)
 version_added: "2.1"
 options:
-  nacl:
+  name:
     description:
       - Tagged name identifying a network ACL.
     required: true
@@ -67,7 +67,7 @@ EXAMPLES = '''
 - name: "Create and associate production DMZ network ACL with DMZ subnets"
   ec2_vpc_nacl:
     vpc: vpc-12345678
-    nacl: prod-dmz-nacl
+    name: prod-dmz-nacl
     region: ap-southeast-2
     subnets: ['prod-dmz-1', 'prod-dmz-2']
     tags:
@@ -89,7 +89,7 @@ EXAMPLES = '''
 - name: "Remove the ingress and egress rules - defaults to deny all"
   ec2_vpc_nacl:
     vpc: vpc-12345678
-    nacl: prod-dmz-nacl
+    name: prod-dmz-nacl
     region: ap-southeast-2
     subnets:
       - prod-dmz-1
@@ -103,14 +103,14 @@ EXAMPLES = '''
 - name: "Remove the NACL subnet associations and tags"
   ec2_vpc_nacl:
     vpc: 'vpc-12345678'
-    nacl: prod-dmz-nacl
+    name: prod-dmz-nacl
     region: ap-southeast-2
     state: present
 
 - name: "Delete nacl and subnet associations"
   ec2_vpc_nacl:
     vpc: vpc-12345678
-    nacl: prod-dmz-nacl
+    name: prod-dmz-nacl
     state: absent
 '''
 RETURN = '''
@@ -156,9 +156,9 @@ def load_tags(module):
     if module.params.get('tags'):
         for name, value in module.params.get('tags').iteritems():
             tags.append({'Key': name, 'Value': str(value)})
-        tags.append({'Key': "Name", 'Value': module.params.get('nacl')})
+        tags.append({'Key': "Name", 'Value': module.params.get('name')})
     else:
-        tags.append({'Key': "Name", 'Value': module.params.get('nacl')})
+        tags.append({'Key': "Name", 'Value': module.params.get('name')})
     return tags
 
 
@@ -228,7 +228,7 @@ def tags_changed(nacl_id, client, module):
     tags = dict()
     if module.params.get('tags'):
         tags = module.params.get('tags')
-    tags['Name'] = module.params.get('nacl')
+    tags['Name'] = module.params.get('name')
     nacl = find_acl_by_id(nacl_id, client, module)
     if nacl['NetworkAcls']:
         nacl_values = [t.values() for t in nacl['NetworkAcls'][0]['Tags']]
@@ -351,6 +351,11 @@ def remove_network_acl(client, module):
             changed = True
             result[nacl_id] = "Successfully deleted"
             return changed, result
+        if not assoc_ids: 
+            delete_network_acl(nacl_id, client, module)
+            changed = True
+            result[nacl_id] = "Successfully deleted"
+            return changed, result            
     return changed, result
 
 
@@ -416,7 +421,7 @@ def describe_acl_associations(subnets, client, module):
 def describe_network_acl(client, module):
     try:
         nacl = client.describe_network_acls(Filters=[
-            {'Name': 'tag:Name', 'Values': [module.params.get('nacl')]}
+            {'Name': 'tag:Name', 'Values': [module.params.get('name')]}
         ])
     except botocore.exceptions.ClientError as e:
         module.fail_json(msg=str(e))
@@ -506,7 +511,7 @@ def main():
     argument_spec = ec2_argument_spec()
     argument_spec.update(dict(
         vpc=dict(required=True),
-        nacl=dict(required=True),
+        name=dict(required=True),
         subnets=dict(required=False, type='list', default=list()),
         tags=dict(required=False, type='dict'),
         ingress=dict(required=False, type='list', default=list()),
@@ -529,7 +534,6 @@ def main():
         "present": setup_network_acl,
         "absent": remove_network_acl
     }
-
     (changed, results) = invocations[state](client, module)
     module.exit_json(changed=changed, nacl_id=results)
 
