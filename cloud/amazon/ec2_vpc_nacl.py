@@ -19,7 +19,7 @@ short_description: create and delete Network ACLs.
 description:
   - Read the AWS documentation for Network ACLS
     U(http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_ACLs.html)
-version_added: "2.1"
+version_added: "2.2"
 options:
   name:
     description:
@@ -58,6 +58,7 @@ options:
     default: present
 author: Mike Mochan(@mmochan)
 extends_documentation_fragment: aws
+requirements: [ botocore, boto3, json ]
 '''
 
 EXAMPLES = '''
@@ -522,7 +523,7 @@ def main():
     module = AnsibleModule(argument_spec=argument_spec)
 
     if not HAS_BOTO3:
-        module.fail_json(msg='json and boto3 is required.')
+        module.fail_json(msg='json, botocore and boto3 are required.')
     state = module.params.get('state').lower()
     try:
         region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module, boto3=True)
