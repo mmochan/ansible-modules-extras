@@ -67,7 +67,7 @@ EXAMPLES = '''
 # that allows SSH, HTTP and ICMP in, and all traffic out.
 - name: "Create and associate production DMZ network ACL with DMZ subnets"
   ec2_vpc_nacl:
-    vpc: vpc-12345678
+    vpc_id: vpc-12345678
     name: prod-dmz-nacl
     region: ap-southeast-2
     subnets: ['prod-dmz-1', 'prod-dmz-2']
@@ -89,7 +89,7 @@ EXAMPLES = '''
 
 - name: "Remove the ingress and egress rules - defaults to deny all"
   ec2_vpc_nacl:
-    vpc: vpc-12345678
+    vpc_id: vpc-12345678
     name: prod-dmz-nacl
     region: ap-southeast-2
     subnets:
@@ -103,14 +103,14 @@ EXAMPLES = '''
 
 - name: "Remove the NACL subnet associations and tags"
   ec2_vpc_nacl:
-    vpc: 'vpc-12345678'
+    vpc_id: 'vpc-12345678'
     name: prod-dmz-nacl
     region: ap-southeast-2
     state: present
 
 - name: "Delete nacl and subnet associations"
   ec2_vpc_nacl:
-    vpc: vpc-12345678
+    vpc_id: vpc-12345678
     name: prod-dmz-nacl
     state: absent
 '''
@@ -180,7 +180,7 @@ def subnets_added(nacl_id, subnets, client, module):
 def subnets_changed(nacl, client, module):
     changed = False
     response = {}
-    vpc_id = module.params.get('vpc')
+    vpc_id = module.params.get('vpc_id')
     nacl_id = nacl['NetworkAcls'][0]['NetworkAclId']
     subnets = subnets_to_associate(nacl, client, module)
     if not subnets:
@@ -314,7 +314,7 @@ def setup_network_acl(client, module):
     changed = False
     nacl = describe_network_acl(client, module)
     if not nacl['NetworkAcls']:
-        nacl = create_network_acl(module.params.get('vpc'), client, module)
+        nacl = create_network_acl(module.params.get('vpc_id'), client, module)
         nacl_id = nacl['NetworkAcl']['NetworkAclId']
         create_tags(nacl_id, client, module)
         subnets = subnets_to_associate(nacl, client, module)
@@ -337,7 +337,7 @@ def setup_network_acl(client, module):
 def remove_network_acl(client, module):
     changed = False
     result = dict()
-    vpc_id = module.params.get('vpc')
+    vpc_id = module.params.get('vpc_id')
     nacl = describe_network_acl(client, module)
     if nacl['NetworkAcls']:
         nacl_id = nacl['NetworkAcls'][0]['NetworkAclId']
@@ -511,7 +511,7 @@ def subnets_to_associate(nacl, client, module):
 def main():
     argument_spec = ec2_argument_spec()
     argument_spec.update(dict(
-        vpc=dict(required=True),
+        vpc_id=dict(required=True),
         name=dict(required=True),
         subnets=dict(required=False, type='list', default=list()),
         tags=dict(required=False, type='dict'),
